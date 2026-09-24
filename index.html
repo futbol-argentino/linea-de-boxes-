@@ -270,7 +270,7 @@
     background:var(--bg);opacity:0;
   }
   .race-transition.playing{opacity:1;}
-  .race-transition.playing::before{animation:rtFlash 1.05s cubic-bezier(.4,0,.2,1) forwards;}
+  .race-transition.playing::before{animation:rtFlash 2.1s cubic-bezier(.4,0,.2,1) forwards;}
 
   .race-stripe{
     position:absolute;top:50%;left:0;width:100%;height:6px;
@@ -278,7 +278,7 @@
     box-shadow:0 0 22px 4px var(--red-glow);
     transform:scaleX(0);transform-origin:left;
   }
-  .race-transition.playing .race-stripe{animation:rtStripe 1.05s cubic-bezier(.4,0,.2,1) forwards;}
+  .race-transition.playing .race-stripe{animation:rtStripe 2.1s cubic-bezier(.4,0,.2,1) forwards;}
 
   .race-car-wrap{
     position:absolute;top:50%;left:var(--car-start);
@@ -286,7 +286,7 @@
     transform:translateY(-50%);
     filter:drop-shadow(0 8px 18px rgba(0,0,0,.6));
   }
-  .race-transition.playing .race-car-wrap{animation:rtCar 1.05s linear forwards;}
+  .race-transition.playing .race-car-wrap{animation:rtCar 2.1s linear forwards;}
 
   .race-trail{height:7px;border-radius:2px;opacity:.9;filter:blur(.5px);}
   .race-trail:nth-child(1){width:100px;margin-right:-6px;background:linear-gradient(90deg,transparent,var(--red));}
@@ -550,13 +550,22 @@ function applyPanel(id) {
 }
 
 function playRaceTransition(id, onHalfway) {
-  const carKey = raceCars[id] ? id : "default";   // auto de la sección a la que vamos
+  let carKey;
+  if (id === "inicio") {
+    // Al volver a Inicio, mostramos el auto de una sección al azar (nunca el genérico)
+    const otherKeys = Object.keys(raceCars).filter(key => key !== "default");
+    carKey = otherKeys.length
+      ? otherKeys[Math.floor(Math.random() * otherKeys.length)]
+      : "default";
+  } else {
+    carKey = raceCars[id] ? id : "default";       // auto de la sección a la que vamos
+  }
   Object.entries(raceCars).forEach(([key, img]) => { img.hidden = key !== carKey; });
   raceOverlay.classList.remove("playing");
   void raceOverlay.offsetWidth; // fuerza reflow para poder reiniciar la animación
   raceOverlay.classList.add("playing");
-  window.setTimeout(onHalfway, 480);             // el auto tapa la pantalla: acá cambiamos el contenido
-  window.setTimeout(() => raceOverlay.classList.remove("playing"), 1080);
+  window.setTimeout(onHalfway, 960);              // el auto tapa la pantalla: acá cambiamos el contenido
+  window.setTimeout(() => raceOverlay.classList.remove("playing"), 2160);
 }
 
 function showPanel(id) {
