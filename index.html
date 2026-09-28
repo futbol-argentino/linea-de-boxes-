@@ -340,7 +340,7 @@
   .reader-body p:first-child::first-letter{
     font-family:'Anton',sans-serif;color:var(--red);font-size:3.1em;float:left;line-height:.85;padding:6px 10px 0 0;
   }
-  .reader-foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);display:flex;gap:18px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+  .reader-foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);display:flex;gap:18px;flex-wrap:wrap;align-items:center;justify-content:flex-end;}
   .reader-foot a{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--line);}
   .reader-foot a:hover{color:var(--white);border-color:var(--red);}
   .reader-foot button{
@@ -929,7 +929,6 @@ async function openReader(item) {
     readerContent.innerHTML = readerHeaderHtml(item, art.title) + `
       <div class="reader-body">${body}</div>
       <div class="reader-foot">
-        <a href="${item.url}" target="_blank" rel="noopener">Ver PDF original</a>
         <button type="button" id="readerBack2">← Volver a las noticias</button>
       </div>`;
     document.getElementById("readerBack2").addEventListener("click", closeReader);
