@@ -333,7 +333,7 @@
   .reader-title{font-size:clamp(30px,5.2vw,52px);line-height:1.04;margin:14px 0 12px;color:var(--white);}
   .reader-date{color:var(--muted);font-size:14px;font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.03em;}
   .reader-rule{height:6px;background:var(--red);margin:26px 0 30px;max-width:180px;clip-path:polygon(0 0,94% 0,100% 100%,0 100%);}
-  .reader-figure{margin:0 0 34px;}
+  .reader-figure{margin:10px 0 34px;}
   .reader-figure img{width:100%;height:auto;max-height:520px;object-fit:cover;border:1px solid var(--line);background:var(--card);}
   .reader-body p{font-size:19px;line-height:1.72;margin:0 0 1.15em;color:var(--white);}
   .reader-body h3{font-size:26px;margin:1.6em 0 .6em;color:var(--white);}
@@ -893,8 +893,7 @@ function readerHeaderHtml(item, title) {
     <div class="reader-tag"><span class="checker"><span></span><span></span><span></span><span></span></span>${escapeHtml(item.category.toUpperCase())}</div>
     <h1 class="reader-title">${escapeHtml(title)}</h1>
     ${item.date ? `<div class="reader-date">${formatDate(item.date)}</div>` : ""}
-    <div class="reader-rule"></div>
-    ${item.imageUrl ? `<figure class="reader-figure"><img src="${item.imageUrl}" alt="${escapeHtml(title)}" onerror="this.parentNode.remove()"></figure>` : ""}`;
+    <div class="reader-rule"></div>`;
 }
 
 async function openReader(item) {
@@ -915,9 +914,18 @@ async function openReader(item) {
     const art = await extractArticle(item);
     if (readingId !== item.id) return;   // el usuario ya abrió/cerró otra noticia
     if (!art.blocks.length) throw new Error("PDF sin texto (posiblemente escaneado)");
-    const body = art.blocks.map(b => b.type === "h"
-      ? `<h3>${escapeHtml(b.text)}</h3>`
-      : `<p>${escapeHtml(b.text)}</p>`).join("");
+    // La imagen va después del primer párrafo (si no hay ningún párrafo, va al principio)
+    const figure = item.imageUrl
+      ? `<figure class="reader-figure"><img src="${item.imageUrl}" alt="${escapeHtml(art.title)}" onerror="this.parentNode.remove()"></figure>`
+      : "";
+    let figurePlaced = false;
+    let body = art.blocks.map(b => {
+      if (b.type === "h") return `<h3>${escapeHtml(b.text)}</h3>`;
+      let html = `<p>${escapeHtml(b.text)}</p>`;
+      if (!figurePlaced && figure) { html += figure; figurePlaced = true; }
+      return html;
+    }).join("");
+    if (figure && !figurePlaced) body = figure + body;
     readerContent.innerHTML = readerHeaderHtml(item, art.title) + `
       <div class="reader-body">${body}</div>
       <div class="reader-foot">
