@@ -188,6 +188,8 @@
     font-size:12px;letter-spacing:.05em;color:var(--red);
   }
   .fc-title{font-weight:600;font-size:17px;line-height:1.3;margin-top:8px;color:var(--white);}
+  .featured-card .nc-thumb{margin-top:12px;}
+  .featured-card{min-width:0;}
   .fc-date{margin-top:14px;font-size:13px;color:var(--muted);}
   .featured-empty,.featured-error{color:var(--muted);font-size:15px;border:1px dashed var(--line);padding:22px;}
 
@@ -232,21 +234,21 @@
   }
   .news-card .nc-title{font-size:18px;font-weight:600;line-height:1.32;color:var(--white);margin-top:10px;}
   /* foto de la noticia: ocupa exactamente el ancho del título, proporción fija 16:9 (recorta, nunca deforma) */
-  .news-card .nc-thumb{
+  .nc-thumb{
     position:relative;width:100%;aspect-ratio:16/9;margin-top:14px;
     overflow:hidden;background:var(--bg-alt);border:1px solid var(--line);
   }
-  .news-card .nc-thumb img{
+  .nc-thumb img{
     position:absolute;inset:0;width:100%;height:100%;max-width:none;
     object-fit:cover;display:block;opacity:0;transition:opacity .35s ease;
   }
-  .news-card .nc-thumb img.loaded{opacity:1;}
-  .news-card .nc-thumb.loading::after{
+  .nc-thumb img.loaded{opacity:1;}
+  .nc-thumb.loading::after{
     content:"";position:absolute;inset:0;
     background:linear-gradient(90deg, transparent, rgba(255,255,255,.05), transparent);
     animation:shine 1.4s infinite;
   }
-  .news-card .nc-thumb.empty{display:none;}   /* noticia sin foto: la tarjeta queda como antes */
+  .nc-thumb.empty{display:none;}   /* noticia sin foto: la tarjeta queda como antes */
   .news-card .nc-cta{
     display:inline-block;margin-top:16px;
     font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;
@@ -702,13 +704,22 @@ function formatDate(d) {
 
 async function fetchCategory(cat) {
   const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${encodeURIComponent(cat.folder)}?ref=${CONFIG.branch}`;
-  const res = await fetch(apiUrl, { headers: { Accept: "application/vnd.github+json" } });
-
-  if (res.status === 404) return []; // la carpeta todavía no existe / está vacía
-  if (!res.ok) throw new Error(`GitHub API respondió ${res.status}`);
-
-  const files = await res.json();
-  if (!Array.isArray(files)) return [];
+  const cacheKey = "lb-files-" + cat.folder;
+  let files;
+  try {
+    const res = await fetch(apiUrl, { headers: { Accept: "application/vnd.github+json" } });
+    if (res.status === 404) return []; // la carpeta todavía no existe / está vacía
+    if (!res.ok) throw new Error(`GitHub API respondió ${res.status}`);
+    files = await res.json();
+    if (!Array.isArray(files)) return [];
+    try { localStorage.setItem(cacheKey, JSON.stringify(files)); } catch (e) {}
+  } catch (err) {
+    // si GitHub no responde (ej. límite de consultas), usamos el último listado guardado
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch (e) {}
+    if (!Array.isArray(cached)) throw err;
+    files = cached;
+  }
 
   // Imágenes de portada: mismo nombre que el PDF, con extensión de imagen (jpg, png, webp...)
   const baseName = n => n.replace(/\.[^.]+$/, "").toLowerCase();
@@ -766,25 +777,36 @@ function renderCategoryError(cat) {
   grid.innerHTML = `<p class="state-msg error">No se pudieron cargar las noticias de esta sección. Revisá que el repositorio en CONFIG y la carpeta "${cat.folder}" existan y sean públicos.</p>`;
 }
 
-function renderFeatured(allItems) {
+function renderFeatured(allItems, allFailed) {
   const featuredGrid = document.getElementById("featuredGrid");
-  const withDate = allItems.filter(i => i.date);
-  const top = withDate.sort((a, b) => b.date - a.date).slice(0, 4);
 
-  if (top.length === 0) {
-    featuredGrid.innerHTML = `<p class="featured-empty">Aún no hay noticias.</p>`;
+  if (allItems.length === 0) {
+    featuredGrid.innerHTML = allFailed
+      ? `<p class="featured-error">No se pudieron cargar las noticias. Revisá tu conexión o volvé a intentar en unos minutos.</p>`
+      : `<p class="featured-empty">Aún no hay noticias.</p>`;
     return;
   }
+
+  // Más nuevas primero (por la fecha del nombre del PDF). Las que no tienen fecha van después,
+  // así que igual aparecen cuando todavía no hay suficientes noticias con fecha.
+  const top = [...allItems].sort((a, b) => {
+    if (a.date && b.date) return (b.date - a.date) || (b.id - a.id);
+    if (a.date) return -1;
+    if (b.date) return 1;
+    return b.id - a.id;
+  }).slice(0, 4);
 
   featuredGrid.innerHTML = top.map(item => `
     <a class="featured-card" href="${item.url}" data-news="${item.id}" target="_blank" rel="noopener">
       <div>
         <div class="fc-tag">${item.category}</div>
         <div class="fc-title">${item.title}</div>
+        <div class="nc-thumb loading" data-thumb="${item.id}"></div>
       </div>
-      <div class="fc-date">${formatDate(item.date)}</div>
+      ${item.date ? `<div class="fc-date">${formatDate(item.date)}</div>` : ""}
     </a>
   `).join("");
+  observeThumbs(featuredGrid);
 }
 
 /* ================================================================
@@ -1153,6 +1175,7 @@ function observeThumbs(root) {
 
 async function init() {
   const allItems = [];
+  let failed = 0;
 
   const results = await Promise.allSettled(
     CONFIG.categories.map(cat => fetchCategory(cat))
@@ -1164,12 +1187,13 @@ async function init() {
       renderCategory(cat, result.value);
       allItems.push(...result.value);
     } else {
+      failed++;
       renderCategoryError(cat);
       console.error(`Error cargando "${cat.label}":`, result.reason);
     }
   });
 
-  renderFeatured(allItems);
+  renderFeatured(allItems, failed === CONFIG.categories.length);
 }
 
 init();
