@@ -558,6 +558,10 @@ CONFIG.categories.forEach(cat => {
 
 /* --- transición entre secciones (auto cruzando la pantalla) --- */
 const raceOverlay = document.getElementById("raceTransition");
+/* estado del lector (declarado acá arriba porque showPanel lo usa desde la primera carga) */
+let readerOpen = false;
+let readingId = null;
+let readerScrollBack = 0;
 let currentPanelId = null;
 
 /* Un auto distinto por categoría. La clave es el id de la categoría (CONFIG.categories).
@@ -755,9 +759,6 @@ const PDFJS_VERSION = "3.11.174";
 const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/`;
 let pdfjsPromise = null;
 const articleCache = new Map();
-let readerOpen = false;
-let readingId = null;
-let readerScrollBack = 0;
 
 function loadPdfJs() {
   if (pdfjsPromise) return pdfjsPromise;
