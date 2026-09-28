@@ -356,6 +356,7 @@
   .reader-figure img{width:100%;height:auto;max-height:520px;object-fit:cover;border:1px solid var(--line);background:var(--card);}
   .reader-body p{font-size:19px;line-height:1.72;margin:0 0 1.15em;color:var(--white);}
   .reader-body h3{font-size:26px;margin:1.6em 0 .6em;color:var(--white);}
+  .reader-body strong.hl{color:var(--red);font-weight:700;}
   .reader-body p:first-child::first-letter{
     font-family:'Anton',sans-serif;color:var(--red);font-size:3.1em;float:left;line-height:.85;padding:6px 10px 0 0;
   }
@@ -837,9 +838,10 @@ function loadPdfJs() {
 const escapeHtml = t => t.replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
 
 /* Une los fragmentos de texto de una página en líneas (con su altura de letra y posición) */
-function pageToLines(items, pageNum) {
+function pageToLines(items, pageNum, isBoldFn) {
   const lines = [];
   let cur = null;
+  const isBold = typeof isBoldFn === "function" ? isBoldFn : () => false;
   for (const it of items) {
     if (typeof it.str !== "string") continue;
     const size = Math.hypot(it.transform[0], it.transform[1]) || it.height || 10;
@@ -847,17 +849,74 @@ function pageToLines(items, pageNum) {
     if (!it.str.trim() && !cur) continue;
     if (!cur || Math.abs(y - cur.y) > Math.max(cur.size, size) * 0.5) {
       if (cur && cur.text.trim()) lines.push(cur);
-      cur = { text: "", y, size: 0, chars: 0, endX: x, page: pageNum, x0: x };
+      cur = { text: "", runs: [], y, size: 0, chars: 0, endX: x, page: pageNum, x0: x };
     }
     const gap = x - cur.endX;
-    if (cur.text && gap > size * 0.2 && !/\s$/.test(cur.text) && !/^\s/.test(it.str)) cur.text += " ";
+    if (cur.text && gap > size * 0.2 && !/\s$/.test(cur.text) && !/^\s/.test(it.str)) { cur.text += " "; cur.runs.push({ t: " ", b: false }); }
     cur.text += it.str;
+    cur.runs.push({ t: it.str, b: it.str.trim() ? isBold(it.fontName) : false });
     if (it.str.trim()) { cur.size = Math.max(cur.size, size); cur.chars += it.str.trim().length; }
     cur.endX = x + (it.width || 0);
   }
   if (cur && cur.text.trim()) lines.push(cur);
-  lines.forEach(l => l.text = l.text.replace(/\s+/g, " ").trim());
+  lines.forEach(l => {
+    l.runs = normalizeRuns(l.runs);
+    l.text = l.runs.map(r => r.t).join("");
+  });
   return lines.filter(l => l.text);
+}
+
+/* ---- Negritas: tramos de texto {t: texto, b: ¿negrita?} ---- */
+function mergeRuns(runs) {
+  const out = [];
+  for (const r of runs) {
+    if (!r.t) continue;
+    const last = out[out.length - 1];
+    if (last && last.b === r.b) last.t += r.t;
+    else out.push({ t: r.t, b: r.b });
+  }
+  return out;
+}
+
+/* Limpia espacios y evita que una frase en negrita quede cortada por un espacio suelto */
+function normalizeRuns(runs) {
+  let rs = runs.map(r => ({ t: r.t.replace(/\s+/g, " "), b: r.b }));
+  // un espacio entre dos palabras en negrita es parte de la negrita
+  rs.forEach((r, i) => {
+    if (!r.t.trim() && !r.b && i > 0 && i < rs.length - 1) {
+      let p = i - 1, n = i + 1;
+      while (p > 0 && !rs[p].t.trim()) p--;
+      while (n < rs.length - 1 && !rs[n].t.trim()) n++;
+      if (rs[p].b && rs[n].b) r.b = true;
+    }
+  });
+  rs = mergeRuns(rs);
+  // los espacios de los bordes de una negrita quedan afuera (no se pintan)
+  const split = [];
+  rs.forEach(r => {
+    if (!r.b) { split.push(r); return; }
+    const m = r.t.match(/^(\s*)([\s\S]*?)(\s*)$/);
+    if (m[1]) split.push({ t: m[1], b: false });
+    if (m[2]) split.push({ t: m[2], b: true });
+    if (m[3]) split.push({ t: m[3], b: false });
+  });
+  rs = mergeRuns(split);
+  // sin espacios dobles entre tramos, y sin espacios al principio/final de la línea
+  for (let i = 1; i < rs.length; i++) {
+    if (rs[i - 1].t.endsWith(" ") && rs[i].t.startsWith(" ")) rs[i].t = rs[i].t.slice(1);
+  }
+  rs = rs.filter(r => r.t);
+  if (rs.length) {
+    rs[0].t = rs[0].t.replace(/^\s+/, "");
+    rs[rs.length - 1].t = rs[rs.length - 1].t.replace(/\s+$/, "");
+  }
+  return rs.filter(r => r.t);
+}
+
+/* Convierte los tramos en HTML: las negritas del PDF van en <strong class="hl"> (rojo) */
+function runsToHtml(runs, fallbackText) {
+  if (!runs || !runs.length) return escapeHtml(fallbackText || "");
+  return mergeRuns(runs).map(r => r.b ? `<strong class="hl">${escapeHtml(r.t)}</strong>` : escapeHtml(r.t)).join("");
 }
 
 /* Arma párrafos y subtítulos a partir de las líneas */
@@ -898,9 +957,19 @@ function linesToBlocks(lines) {
       else if ((prev.y - l.y) > lineGap * 1.45) newPara = true;
       else if (isBullet(l.text)) newPara = true;
     }
-    if (newPara) { push(); cur = { type: "p", text: l.text, page: l.page }; }
-    else if (/[a-záéíóúñü]-$/.test(cur.text) && /^[a-záéíóúñü]/.test(l.text)) cur.text = cur.text.slice(0, -1) + l.text;
-    else cur.text += " " + l.text;
+    if (newPara) { push(); cur = { type: "p", text: l.text, runs: l.runs.map(r => ({ ...r })), page: l.page }; }
+    else if (/[a-záéíóúñü]-$/.test(cur.text) && /^[a-záéíóúñü]/.test(l.text)) {
+      cur.text = cur.text.slice(0, -1) + l.text;
+      const last = cur.runs[cur.runs.length - 1];
+      last.t = last.t.slice(0, -1);
+      if (!last.t) cur.runs.pop();
+      cur.runs.push(...l.runs.map(r => ({ ...r })));
+    } else {
+      cur.text += " " + l.text;
+      const last = cur.runs[cur.runs.length - 1], first = l.runs[0];
+      cur.runs.push({ t: " ", b: !!(last && first && last.b && first.b) });
+      cur.runs.push(...l.runs.map(r => ({ ...r })));
+    }
   });
   push();
   return blocks.filter(b => b.text.trim().length > 0);
@@ -911,11 +980,30 @@ async function extractArticle(item) {
   const pdfjsLib = await loadPdfJs();
   const pdf = await pdfjsLib.getDocument({ url: item.rawUrl }).promise;
   const lines = [];
+  const boldCache = new Map();
   for (let n = 1; n <= pdf.numPages; n++) {
     const page = await pdf.getPage(n);
+    // getOperatorList carga las fuentes del PDF; así podemos saber cuáles son negrita
+    try { await page.getOperatorList(); } catch (e) {}
     const content = await page.getTextContent();
-    lines.push(...pageToLines(content.items, n));
+    const isBold = fontName => {
+      if (boldCache.has(fontName)) return boldCache.get(fontName);
+      let bold = false;
+      try {
+        if (page.commonObjs.has(fontName)) {
+          const f = page.commonObjs.get(fontName);
+          bold = !!(f.bold || f.black) || /bold|black|heavy|demi/i.test(String(f.name || ""));
+        }
+      } catch (e) {}
+      boldCache.set(fontName, bold);
+      return bold;
+    };
+    lines.push(...pageToLines(content.items, n, isBold));
   }
+  // Seguridad: si casi todo el texto figura en negrita, la fuente del cuerpo está mal marcada: no pintamos nada
+  let boldChars = 0, allChars = 0;
+  lines.forEach(l => l.runs.forEach(r => { const c = r.t.trim().length; allChars += c; if (r.b) boldChars += c; }));
+  if (allChars && boldChars / allChars > 0.7) lines.forEach(l => { l.runs = [{ t: l.text, b: false }]; });
   let blocks = linesToBlocks(lines);
   // Si el PDF trae un título grande arriba de todo, lo usamos como título de la noticia
   let title = item.title;
@@ -963,7 +1051,7 @@ async function openReader(item) {
     let figurePlaced = false;
     let body = art.blocks.map(b => {
       if (b.type === "h") return `<h3>${escapeHtml(b.text)}</h3>`;
-      let html = `<p>${escapeHtml(b.text)}</p>`;
+      let html = `<p>${runsToHtml(b.runs, b.text)}</p>`;
       if (!figurePlaced && figure) { html += figure; figurePlaced = true; }
       return html;
     }).join("");
