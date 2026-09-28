@@ -225,11 +225,28 @@
     clip-path:polygon(0 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%);
     transition:border-color .15s ease, transform .15s ease;
   }
+  .news-card{min-width:0;}
   .news-card:hover{border-color:var(--red);transform:translateY(-2px);}
   .news-card .nc-date{
     font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.03em;color:var(--red);
   }
   .news-card .nc-title{font-size:18px;font-weight:600;line-height:1.32;color:var(--white);margin-top:10px;}
+  /* foto de la noticia: ocupa exactamente el ancho del título, proporción fija 16:9 (recorta, nunca deforma) */
+  .news-card .nc-thumb{
+    position:relative;width:100%;aspect-ratio:16/9;margin-top:14px;
+    overflow:hidden;background:var(--bg-alt);border:1px solid var(--line);
+  }
+  .news-card .nc-thumb img{
+    position:absolute;inset:0;width:100%;height:100%;max-width:none;
+    object-fit:cover;display:block;opacity:0;transition:opacity .35s ease;
+  }
+  .news-card .nc-thumb img.loaded{opacity:1;}
+  .news-card .nc-thumb.loading::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.05), transparent);
+    animation:shine 1.4s infinite;
+  }
+  .news-card .nc-thumb.empty{display:none;}   /* noticia sin foto: la tarjeta queda como antes */
   .news-card .nc-cta{
     display:inline-block;margin-top:16px;
     font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;
@@ -500,6 +517,7 @@ const CONFIG = {
     { id: "f2f3",       folder: "formula-2-formula-3", label: "Fórmula 2 / Fórmula 3",  logo: "logos/f2f3.png" },
     { id: "zonal",      folder: "automovilismo-zonal", label: "Automovilismo Zonal",    logo: "logos/zonal.png" },
     { id: "motogp",     folder: "motogp",              label: "MotoGP",                 logo: "logos/motogp.png" },
+    { id: "opinion",    folder: "notas-de-opinion",    label: "Notas de opinión",       logo: "" },
   ]
 };
 
@@ -604,8 +622,8 @@ function applyPanel(id) {
 
 function playRaceTransition(id, onHalfway) {
   let carKey;
-  if (id === "inicio") {
-    // Al volver a Inicio, mostramos el auto de una sección al azar (nunca el genérico)
+  if (id === "inicio" || id === "opinion") {
+    // Al volver a Inicio o entrar a Notas de opinión, mostramos el auto de una sección al azar (nunca el genérico)
     const otherKeys = Object.keys(raceCars).filter(key => key !== "default");
     carKey = otherKeys.length
       ? otherKeys[Math.floor(Math.random() * otherKeys.length)]
@@ -734,9 +752,11 @@ function renderCategory(cat, items) {
     <a class="news-card" href="${item.url}" data-news="${item.id}" target="_blank" rel="noopener">
       ${item.date ? `<div class="nc-date">${formatDate(item.date)}</div>` : ""}
       <div class="nc-title">${item.title}</div>
+      <div class="nc-thumb loading" data-thumb="${item.id}"></div>
       <span class="nc-cta">Leer noticia →</span>
     </a>
   `).join("");
+  observeThumbs(grid);
 }
 
 function renderCategoryError(cat) {
@@ -967,6 +987,169 @@ document.addEventListener("click", e => {
   const item = NEWS[Number(card.dataset.news)];
   if (item) openReader(item);
 });
+
+/* ================================================================
+   MINIATURAS — la foto de cada noticia, debajo del título.
+   1) Si en la carpeta hay una imagen con el mismo nombre que el PDF, se usa esa.
+   2) Si no, se extrae del propio PDF la foto más grande de las primeras páginas.
+   Se cargan recién cuando la tarjeta es visible, de a pocas por vez.
+   ================================================================ */
+function preloadImage(src) {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(src);
+    im.onerror = () => reject(new Error("imagen no disponible"));
+    im.src = src;
+  });
+}
+
+function getPdfImageObj(page, name) {
+  return new Promise((resolve, reject) => {
+    const store = String(name).startsWith("g_") ? page.commonObjs : page.objs;
+    const t = setTimeout(() => reject(new Error("timeout imagen PDF")), 8000);
+    store.get(name, obj => { clearTimeout(t); resolve(obj); });
+  });
+}
+
+/* Convierte el objeto de imagen de PDF.js en un JPEG (data URL) de hasta 800 px de ancho */
+function pdfImageToDataUrl(img) {
+  if (!img) return null;
+  const w = img.width, h = img.height;
+  if (!w || !h) return null;
+  const full = document.createElement("canvas");
+  full.width = w; full.height = h;
+  const fctx = full.getContext("2d");
+
+  if (img.bitmap) {
+    fctx.drawImage(img.bitmap, 0, 0);
+  } else if (img.data) {
+    const s = img.data, out = fctx.createImageData(w, h), d = out.data, px = w * h;
+    if (s.length === px * 4) {
+      d.set(s);
+    } else if (s.length === px * 3) {
+      for (let i = 0, j = 0, k = 0; i < px; i++) { d[j++] = s[k++]; d[j++] = s[k++]; d[j++] = s[k++]; d[j++] = 255; }
+    } else if (s.length === px) {
+      for (let i = 0, j = 0; i < px; i++) { const v = s[i]; d[j++] = v; d[j++] = v; d[j++] = v; d[j++] = 255; }
+    } else {
+      const rowBytes = (w + 7) >> 3;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const v = ((s[y * rowBytes + (x >> 3)] >> (7 - (x & 7))) & 1) ? 255 : 0;
+        const j = (y * w + x) * 4; d[j] = d[j + 1] = d[j + 2] = v; d[j + 3] = 255;
+      }
+    }
+    fctx.putImageData(out, 0, 0);
+  } else {
+    return null;
+  }
+
+  const scale = Math.min(1, 800 / w);
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(w * scale));
+  c.height = Math.max(1, Math.round(h * scale));
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(full, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.82);
+}
+
+async function extractPdfImage(item) {
+  const pdfjsLib = await loadPdfJs();
+  const pdf = await pdfjsLib.getDocument({ url: item.rawUrl }).promise;
+  try {
+    const OPS = pdfjsLib.OPS;
+    const lastPage = Math.min(pdf.numPages, 3);
+    for (let n = 1; n <= lastPage; n++) {
+      const page = await pdf.getPage(n);
+      const ops = await page.getOperatorList();
+      const cands = [];
+      for (let i = 0; i < ops.fnArray.length; i++) {
+        const fn = ops.fnArray[i], args = ops.argsArray[i];
+        if (!args || !args[0]) continue;
+        let w, h, ref = null, inline = null;
+        if (fn === OPS.paintImageXObject) { ref = args[0]; w = args[1] || 0; h = args[2] || 0; }
+        else if (fn === OPS.paintInlineImageXObject) { inline = args[0]; w = inline.width || 0; h = inline.height || 0; }
+        else continue;
+        if (w && h) {
+          if (w < 120 || h < 120) continue;               // logos, íconos, líneas
+          const ratio = w / h;
+          if (ratio > 4 || ratio < 0.25) continue;        // banners y franjas
+        }
+        cands.push({ ref, inline, area: (w || 1) * (h || 1) });
+      }
+      cands.sort((a, b) => b.area - a.area);
+      for (const c of cands.slice(0, 3)) {
+        try {
+          const obj = c.inline || await getPdfImageObj(page, c.ref);
+          const url = pdfImageToDataUrl(obj);
+          if (url) return url;
+        } catch (e) { /* probamos con la siguiente imagen */ }
+      }
+    }
+    return null;
+  } finally {
+    pdf.destroy();
+  }
+}
+
+function getItemThumb(item) {
+  if (!item.thumbPromise) {
+    item.thumbPromise = (async () => {
+      if (item.imageUrl) {
+        try { return await preloadImage(item.imageUrl); } catch (e) { /* cae al PDF */ }
+      }
+      return await extractPdfImage(item);
+    })();
+  }
+  return item.thumbPromise;
+}
+
+async function loadThumb(el) {
+  const item = NEWS[Number(el.dataset.thumb)];
+  try {
+    const src = item && await getItemThumb(item);
+    if (!src) throw new Error("sin foto");
+    const im = new Image();
+    im.alt = "";
+    im.decoding = "async";
+    im.onload = () => { el.classList.remove("loading"); im.classList.add("loaded"); };
+    im.onerror = () => { el.classList.remove("loading"); el.classList.add("empty"); };
+    im.src = src;
+    el.appendChild(im);
+  } catch (err) {
+    el.classList.remove("loading");
+    el.classList.add("empty");
+  }
+}
+
+const thumbQueue = [];
+let thumbActive = 0;
+function pumpThumbs() {
+  while (thumbActive < 3 && thumbQueue.length) {
+    const el = thumbQueue.shift();
+    thumbActive++;
+    loadThumb(el).finally(() => { thumbActive--; pumpThumbs(); });
+  }
+}
+
+const thumbObserver = ("IntersectionObserver" in window)
+  ? new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        thumbObserver.unobserve(e.target);
+        thumbQueue.push(e.target);
+      });
+      pumpThumbs();
+    }, { rootMargin: "200px" })
+  : null;
+
+function observeThumbs(root) {
+  root.querySelectorAll(".nc-thumb[data-thumb]").forEach(el => {
+    if (thumbObserver) thumbObserver.observe(el);
+    else { thumbQueue.push(el); }
+  });
+  if (!thumbObserver) pumpThumbs();
+}
 
 async function init() {
   const allItems = [];
