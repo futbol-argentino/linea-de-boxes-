@@ -333,6 +333,8 @@
   .reader-title{font-size:clamp(30px,5.2vw,52px);line-height:1.04;margin:14px 0 12px;color:var(--white);}
   .reader-date{color:var(--muted);font-size:14px;font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.03em;}
   .reader-rule{height:6px;background:var(--red);margin:26px 0 30px;max-width:180px;clip-path:polygon(0 0,94% 0,100% 100%,0 100%);}
+  .reader-figure{margin:0 0 34px;}
+  .reader-figure img{width:100%;height:auto;max-height:520px;object-fit:cover;border:1px solid var(--line);background:var(--card);}
   .reader-body p{font-size:19px;line-height:1.72;margin:0 0 1.15em;color:var(--white);}
   .reader-body h3{font-size:26px;margin:1.6em 0 .6em;color:var(--white);}
   .reader-body p:first-child::first-letter{
@@ -690,9 +692,23 @@ async function fetchCategory(cat) {
   const files = await res.json();
   if (!Array.isArray(files)) return [];
 
+  // Imágenes de portada: mismo nombre que el PDF, con extensión de imagen (jpg, png, webp...)
+  const baseName = n => n.replace(/\.[^.]+$/, "").toLowerCase();
+  const images = {};
+  files
+    .filter(f => f.type === "file" && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name))
+    .forEach(f => {
+      images[baseName(f.name)] = f.download_url ||
+        `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}/${encodeURIComponent(cat.folder)}/${encodeURIComponent(f.name)}`;
+    });
+
   const items = files
     .filter(f => f.type === "file" && /\.pdf$/i.test(f.name))
-    .map(f => parseNewsItem(f, cat));
+    .map(f => {
+      const item = parseNewsItem(f, cat);
+      item.imageUrl = images[baseName(f.name)] || null;
+      return item;
+    });
 
   items.sort((a, b) => {
     if (a.date && b.date) return b.date - a.date;
@@ -877,7 +893,8 @@ function readerHeaderHtml(item, title) {
     <div class="reader-tag"><span class="checker"><span></span><span></span><span></span><span></span></span>${escapeHtml(item.category.toUpperCase())}</div>
     <h1 class="reader-title">${escapeHtml(title)}</h1>
     ${item.date ? `<div class="reader-date">${formatDate(item.date)}</div>` : ""}
-    <div class="reader-rule"></div>`;
+    <div class="reader-rule"></div>
+    ${item.imageUrl ? `<figure class="reader-figure"><img src="${item.imageUrl}" alt="${escapeHtml(title)}" onerror="this.parentNode.remove()"></figure>` : ""}`;
 }
 
 async function openReader(item) {
