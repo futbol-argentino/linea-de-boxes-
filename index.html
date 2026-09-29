@@ -374,6 +374,30 @@
   .reader-error{color:var(--muted);font-size:17px;line-height:1.6;border:1px dashed var(--line);padding:22px;}
   .reader-error a{color:var(--red);border-bottom:1px solid var(--red);}
 
+  /* ============================================================
+     PRÓXIMA CARRERA — tarjeta arriba de las noticias de cada categoría
+     ============================================================ */
+  .next-race{
+    display:grid;grid-template-columns:1.05fr 1fr;
+    background:var(--card);border:1px solid var(--line);border-left:3px solid var(--red);
+    margin-bottom:34px;
+  }
+  @media (max-width:760px){.next-race{grid-template-columns:1fr;}}
+  .nr-body{padding:24px 26px 26px;min-width:0;display:flex;flex-direction:column;gap:8px;}
+  .nr-tag{display:flex;align-items:center;gap:10px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--red);}
+  .nr-title{font-size:clamp(24px,3.4vw,34px);color:var(--white);margin-top:4px;}
+  .nr-circuit{font-weight:600;font-size:17px;color:var(--white);}
+  .nr-meta{font-size:15px;color:var(--muted);line-height:1.5;}
+  .nr-when{margin-top:8px;display:inline-block;align-self:flex-start;background:var(--red);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;letter-spacing:.04em;padding:6px 12px;}
+  .nr-note{margin-top:8px;font-size:13px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line);padding-top:10px;}
+  .nr-img{position:relative;min-height:230px;background:#f3efe4;border-left:1px solid var(--line);}  /* fondo claro fijo: los mapas de circuito son líneas oscuras */
+  @media (max-width:760px){.nr-img{border-left:none;border-top:1px solid var(--line);}}
+  .nr-img img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;padding:16px;display:none;}
+  .nr-img.has-img img{display:block;}
+  .nr-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;
+    font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:.03em;color:#6b6558;}
+  .nr-img.has-img .nr-ph{display:none;}
+
 </style>
 </head>
 <body>
@@ -515,13 +539,41 @@ const CONFIG = {
   repo:   "linea-de-boxes-",
   branch: "main",
   categories: [
-    { id: "f1",        folder: "formula-1",           label: "Fórmula 1",              logo: "logos/f1.png" },
+    { id: "f1",        folder: "formula-1",           label: "Fórmula 1",              logo: "logos/f1.png",
+      nextRace: {
+        name: "Gran Premio de Baréin (en Malasia)", circuit: "Sepang International Circuit", place: "Sepang, Malasia",
+        start: "2026-10-02", end: "2026-10-04", dateText: "2 al 4 de octubre",
+        note: "Reprogramado en Sepang: la carrera original en Baréin se cambió por motivos de seguridad.",
+        image: "circuitos/f1.png", wikiSearch: "Sepang International Circuit"
+      } },
     { id: "colapinto",  folder: "franco-colapinto",    label: "Franco Colapinto",       logo: "logos/colapinto.png" },
-    { id: "tc",         folder: "turismo-carretera",   label: "Turismo Carretera",      logo: "logos/tc.png" },
-    { id: "tc2000",     folder: "tc2000",              label: "TC2000",                 logo: "logos/tc2000.png" },
-    { id: "f2f3",       folder: "formula-2-formula-3", label: "Fórmula 2 / Fórmula 3",  logo: "logos/f2f3.png" },
+    { id: "tc",         folder: "turismo-carretera",   label: "Turismo Carretera",      logo: "logos/tc.png",
+      nextRace: {
+        name: "12ª fecha — Copa de Oro", circuit: "Autódromo Juan María Traverso", place: "San Nicolás, Buenos Aires",
+        start: "2026-10-04", end: "2026-10-04", dateText: "Domingo 4 de octubre",
+        image: "circuitos/tc.png", wikiLang: "es", wikiSearch: "Autódromo Juan María Traverso San Nicolás"
+      } },
+    { id: "tc2000",     folder: "tc2000",              label: "TC2000",                 logo: "logos/tc2000.png",
+      nextRace: {
+        name: "9ª fecha", circuit: "Sede a confirmar", place: "Autódromo por definir",
+        start: "2026-10-10", end: "2026-10-11", dateText: "10 y 11 de octubre (fecha prevista)",
+        note: "Completá circuit, place y wikiSearch en CONFIG cuando se confirme el escenario.",
+        image: "circuitos/tc2000.png"
+      } },
+    { id: "f2f3",       folder: "formula-2-formula-3", label: "Fórmula 2 / Fórmula 3",  logo: "logos/f2f3.png",
+      nextRace: {
+        name: "F2 — Ronda 13, Gran Premio de Catar", circuit: "Lusail International Circuit", place: "Lusail, Catar",
+        start: "2026-11-27", end: "2026-11-29", dateText: "27 al 29 de noviembre",
+        note: "La F3 ya cerró su temporada en Madrid. La ronda de Catar sigue en calendario, pero puede cambiar junto con la F1.",
+        image: "circuitos/f2f3.png", wikiSearch: "Lusail International Circuit"
+      } },
     { id: "zonal",      folder: "automovilismo-zonal", label: "Automovilismo Zonal",    logo: "logos/zonal.png" },
-    { id: "motogp",     folder: "motogp",              label: "MotoGP",                 logo: "logos/motogp.png" },
+    { id: "motogp",     folder: "motogp",              label: "MotoGP",                 logo: "logos/motogp.png",
+      nextRace: {
+        name: "Gran Premio de Japón", circuit: "Mobility Resort Motegi", place: "Motegi, Japón",
+        start: "2026-10-02", end: "2026-10-04", dateText: "2 al 4 de octubre",
+        image: "circuitos/motogp.png", wikiSearch: "Mobility Resort Motegi"
+      } },
     { id: "opinion",    folder: "notas-de-opinion",    label: "Notas de opinión",       logo: "" },
   ]
 };
@@ -558,6 +610,7 @@ CONFIG.categories.forEach(cat => {
         <h2>${cat.label}</h2>
         <span class="cat-count" id="count-${cat.id}">—</span>
       </div>
+      ${cat.nextRace ? `<div class="next-race" id="next-${cat.id}"></div>` : ""}
       <div class="news-grid" id="grid-${cat.id}">
         <div class="skeleton"></div>
         <div class="skeleton"></div>
@@ -566,6 +619,7 @@ CONFIG.categories.forEach(cat => {
     </div>
   `;
   panelsRoot.appendChild(panel);
+  renderNextRace(cat);
 
   const logoSlot = panel.querySelector(".cat-logo-slot");
   if (cat.logo) {
@@ -1303,6 +1357,61 @@ function observeThumbs(root) {
     else { thumbQueue.push(el); }
   });
   if (!thumbObserver) pumpThumbs();
+}
+
+/* ================================================================
+   PRÓXIMA CARRERA — se arma con cat.nextRace (ver CONFIG).
+   Imagen del circuito, en este orden:
+   1) r.image  (ej. "circuitos/f1.png", subila a esa carpeta del repo)
+   2) la imagen principal del artículo de Wikipedia de r.wikiSearch
+   3) si no hay ninguna, un recuadro con el nombre del circuito
+   ================================================================ */
+async function loadCircuitImage(r) {
+  if (r.image) { try { return await preloadImage(r.image); } catch (e) { /* sigue */ } }
+  if (r.wikiSearch) {
+    try {
+      const url = `https://${r.wikiLang || "en"}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(r.wikiSearch)}&gsrlimit=1&prop=pageimages&piprop=original&format=json&origin=*`;
+      const data = await (await fetch(url)).json();
+      const page = data.query && Object.values(data.query.pages)[0];
+      if (page && page.original) return page.original.source;
+    } catch (e) { /* sin imagen */ }
+  }
+  return null;
+}
+
+function renderNextRace(cat) {
+  const box = document.getElementById("next-" + cat.id);
+  const r = cat.nextRace;
+  if (!box || !r) return;
+
+  const parse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const start = parse(r.start), end = parse(r.end);
+  let when;
+  if (today > end) when = "Fecha ya disputada — actualizá nextRace en CONFIG";
+  else if (today >= start) when = "¡Se corre este fin de semana!";
+  else { const n = Math.round((start - today) / 864e5); when = n === 1 ? "Falta 1 día" : `Faltan ${n} días`; }
+
+  box.innerHTML = `
+    <div class="nr-body">
+      <div class="nr-tag"><span class="checker"><span></span><span></span><span></span><span></span></span>PRÓXIMA CARRERA</div>
+      <h3 class="nr-title">${r.name}</h3>
+      <div class="nr-circuit">${r.circuit}</div>
+      <div class="nr-meta">${r.place}<br>${r.dateText}</div>
+      <div class="nr-when">${when}</div>
+      ${r.note ? `<div class="nr-note">${r.note}</div>` : ""}
+    </div>
+    <div class="nr-img"><span class="nr-ph">${r.circuit}</span></div>`;
+
+  const slot = box.querySelector(".nr-img");
+  loadCircuitImage(r).then(src => {
+    if (!src) return;
+    const im = new Image();
+    im.alt = "Circuito: " + r.circuit;
+    im.onload = () => slot.classList.add("has-img");
+    im.src = src;
+    slot.appendChild(im);
+  });
 }
 
 async function init() {
