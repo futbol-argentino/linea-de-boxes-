@@ -703,24 +703,52 @@ function formatDate(d) {
   return d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 }
 
-async function fetchCategory(cat) {
-  const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${encodeURIComponent(cat.folder)}?ref=${CONFIG.branch}`;
-  const cacheKey = "lb-files-" + cat.folder;
-  let files;
-  try {
-    const res = await fetch(apiUrl, { headers: { Accept: "application/vnd.github+json" } });
-    if (res.status === 404) return []; // la carpeta todavía no existe / está vacía
-    if (!res.ok) throw new Error(`GitHub API respondió ${res.status}`);
-    files = await res.json();
-    if (!Array.isArray(files)) return [];
-    try { localStorage.setItem(cacheKey, JSON.stringify(files)); } catch (e) {}
-  } catch (err) {
-    // si GitHub no responde (ej. límite de consultas), usamos el último listado guardado
+/* Una sola consulta a GitHub para TODO el repo (antes eran 8, una por carpeta).
+   La API sin token permite solo 60 consultas por hora por IP: con 8 por carga,
+   se agotaba con ~7 recargas y la página quedaba sin noticias.
+   Además se guarda el resultado 2 minutos para que recargar no gaste consultas. */
+const TREE_CACHE_KEY = "lb-tree-v2";
+const TREE_TTL_MS = 2 * 60 * 1000;
+let repoTreePromise = null;
+
+function getRepoPaths() {
+  if (repoTreePromise) return repoTreePromise;
+  repoTreePromise = (async () => {
     let cached = null;
-    try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch (e) {}
-    if (!Array.isArray(cached)) throw err;
-    files = cached;
-  }
+    try { cached = JSON.parse(localStorage.getItem(TREE_CACHE_KEY)); } catch (e) {}
+    const hasCache = cached && Array.isArray(cached.paths);
+    if (hasCache && Date.now() - cached.time < TREE_TTL_MS) return cached.paths;
+    try {
+      const url = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/git/trees/${encodeURIComponent(CONFIG.branch)}?recursive=1`;
+      const res = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
+      if (!res.ok) throw new Error(`GitHub API respondió ${res.status}`);
+      const data = await res.json();
+      const paths = (data.tree || []).filter(t => t.type === "blob").map(t => t.path);
+      try { localStorage.setItem(TREE_CACHE_KEY, JSON.stringify({ time: Date.now(), paths })); } catch (e) {}
+      return paths;
+    } catch (err) {
+      // si GitHub no responde (ej. límite de consultas), usamos el último listado guardado
+      if (hasCache) return cached.paths;
+      throw err;
+    }
+  })();
+  return repoTreePromise;
+}
+
+async function fetchCategory(cat) {
+  const paths = await getRepoPaths();
+  const prefix = cat.folder + "/";
+  const files = paths
+    .filter(p => p.startsWith(prefix) && !p.slice(prefix.length).includes("/"))
+    .map(p => {
+      const enc = p.split("/").map(encodeURIComponent).join("/");
+      return {
+        name: p.slice(prefix.length),
+        type: "file",
+        html_url: `https://github.com/${CONFIG.owner}/${CONFIG.repo}/blob/${CONFIG.branch}/${enc}`,
+        download_url: `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}/${enc}`,
+      };
+    });
 
   // Imágenes de portada: mismo nombre que el PDF, con extensión de imagen (jpg, png, webp...)
   const baseName = n => n.replace(/\.[^.]+$/, "").toLowerCase();
