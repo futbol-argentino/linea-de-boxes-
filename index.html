@@ -714,6 +714,20 @@ let repoTreePromise = null;
 function getRepoPaths() {
   if (repoTreePromise) return repoTreePromise;
   repoTreePromise = (async () => {
+    // 1) Lo normal: leer noticias.json, que genera solo el GitHub Action (sin límites de consultas)
+    try {
+      const r = await fetch("noticias.json?v=" + Date.now(), { cache: "no-store" });
+      if (r.ok) {
+        const data = await r.json();
+        const lista = Array.isArray(data) ? data : data.archivos;
+        if (Array.isArray(lista)) {
+          try { localStorage.setItem(TREE_CACHE_KEY, JSON.stringify({ time: Date.now(), paths: lista })); } catch (e) {}
+          return lista;
+        }
+      }
+    } catch (e) { /* si no existe todavía, seguimos con la API de GitHub */ }
+
+    // 2) Plan B: preguntarle a la API de GitHub (con límite de consultas) o usar lo guardado
     let cached = null;
     try { cached = JSON.parse(localStorage.getItem(TREE_CACHE_KEY)); } catch (e) {}
     const hasCache = cached && Array.isArray(cached.paths);
