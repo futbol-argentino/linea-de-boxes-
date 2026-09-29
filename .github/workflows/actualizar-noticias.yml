@@ -1,1 +1,60 @@
+name: Actualizar lista de noticias
 
+# Se ejecuta solo cada vez que subís o borrás archivos en el repo.
+# Genera noticias.json con la lista de PDF e imágenes de cada carpeta,
+# así la página no necesita consultar la API de GitHub (sin límites).
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'noticias.json'
+  workflow_dispatch:   # permite ejecutarlo a mano desde la pestaña Actions
+
+permissions:
+  contents: write
+
+concurrency:
+  group: actualizar-noticias
+  cancel-in-progress: false
+
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar noticias.json
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, re
+          salida = subprocess.check_output(["git", "ls-files", "-z"]).decode("utf-8")
+          ext = re.compile(r"\.(pdf|jpe?g|png|webp|gif|avif)$", re.I)
+          archivos = []
+          for ruta in salida.split("\0"):
+              partes = ruta.split("/")
+              if len(partes) != 2:                       # solo archivos dentro de una carpeta
+                  continue
+              carpeta = partes[0]
+              if carpeta.startswith(".") or carpeta == "logos":
+                  continue
+              if ext.search(ruta):
+                  archivos.append(ruta)
+          archivos.sort()
+          with open("noticias.json", "w", encoding="utf-8") as f:
+              json.dump({"archivos": archivos}, f, ensure_ascii=False, indent=1)
+              f.write("\n")
+          print(f"{len(archivos)} archivos listados")
+          PY
+
+      - name: Guardar cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add noticias.json
+          if git diff --cached --quiet; then
+            echo "Sin cambios."
+          else
+            git commit -m "Actualizar noticias.json"
+            git pull --rebase
+            git push
+          fi
