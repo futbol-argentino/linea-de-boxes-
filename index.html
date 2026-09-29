@@ -190,6 +190,8 @@
   .fc-title{font-weight:600;font-size:17px;line-height:1.3;margin-top:8px;color:var(--white);}
   .featured-card .nc-thumb{margin-top:12px;}
   .featured-card{min-width:0;}
+  .featured-card > div:first-child{flex:1 1 auto;display:flex;flex-direction:column;}   /* bloque tag+título+foto: ocupa el alto disponible */
+  .featured-card .fc-title{flex:1 1 auto;}                                                /* el título se estira y la foto queda al fondo, alineada */
   .fc-date{margin-top:14px;font-size:13px;color:var(--muted);}
   .featured-empty,.featured-error{color:var(--muted);font-size:15px;border:1px dashed var(--line);padding:22px;}
 
@@ -227,15 +229,15 @@
     clip-path:polygon(0 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%);
     transition:border-color .15s ease, transform .15s ease;
   }
-  .news-card{min-width:0;}
+  .news-card{min-width:0;display:flex;flex-direction:column;}   /* columna: el título se estira y la foto queda siempre al fondo, alineada entre tarjetas */
   .news-card:hover{border-color:var(--red);transform:translateY(-2px);}
   .news-card .nc-date{
     font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.03em;color:var(--red);
   }
-  .news-card .nc-title{font-size:18px;font-weight:600;line-height:1.32;color:var(--white);margin-top:10px;}
+  .news-card .nc-title{font-size:18px;font-weight:600;line-height:1.32;color:var(--white);margin-top:10px;flex:1 1 auto;}
   /* foto de la noticia: ocupa exactamente el ancho del título, proporción fija 16:9 (recorta, nunca deforma) */
   .nc-thumb{
-    position:relative;width:100%;aspect-ratio:16/9;margin-top:14px;
+    position:relative;width:100%;aspect-ratio:16/9;margin-top:14px;flex:none;
     overflow:hidden;background:var(--bg-alt);border:1px solid var(--line);
   }
   .nc-thumb img{
@@ -252,7 +254,7 @@
   .news-card .nc-cta{
     display:inline-block;margin-top:16px;
     font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;
-    color:var(--muted);border-top:1px solid var(--line);padding-top:12px;width:100%;
+    color:var(--muted);border-top:1px solid var(--line);padding-top:12px;width:100%;flex:none;
   }
   .news-card:hover .nc-cta{color:var(--white);}
 
