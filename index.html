@@ -356,6 +356,8 @@
   .reader-rule{height:6px;background:var(--red);margin:26px 0 30px;max-width:180px;clip-path:polygon(0 0,94% 0,100% 100%,0 100%);}
   .reader-figure{margin:10px 0 34px;}
   .reader-figure img{width:100%;height:auto;max-height:520px;object-fit:cover;border:1px solid var(--line);background:var(--card);}
+  .reader-video{margin:10px 0 34px;}
+  .reader-video video{width:100%;height:auto;max-height:560px;display:block;border:1px solid var(--line);background:#000;}
   .reader-body p{font-size:19px;line-height:1.72;margin:0 0 1.15em;color:var(--white);}
   .reader-body h3{font-size:26px;margin:1.6em 0 .6em;color:var(--white);}
   .reader-body strong.hl{color:var(--red);font-weight:700;}
@@ -829,11 +831,21 @@ async function fetchCategory(cat) {
         `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}/${encodeURIComponent(cat.folder)}/${encodeURIComponent(f.name)}`;
     });
 
+  // Videos: mismo nombre que el PDF, con extensión de video (mp4, webm, mov...)
+  const videos = {};
+  files
+    .filter(f => f.type === "file" && /\.(mp4|webm|mov|m4v)$/i.test(f.name))
+    .forEach(f => {
+      videos[baseName(f.name)] = f.download_url ||
+        `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}/${encodeURIComponent(cat.folder)}/${encodeURIComponent(f.name)}`;
+    });
+
   const items = files
     .filter(f => f.type === "file" && /\.pdf$/i.test(f.name))
     .map(f => {
       const item = parseNewsItem(f, cat);
       item.imageUrl = images[baseName(f.name)] || null;
+      item.videoUrl = videos[baseName(f.name)] || null;
       return item;
     });
 
@@ -1145,14 +1157,22 @@ async function openReader(item) {
     const figure = item.imageUrl
       ? `<figure class="reader-figure"><img src="${item.imageUrl}" alt="${escapeHtml(art.title)}" onerror="this.parentNode.remove()"></figure>`
       : "";
-    let figurePlaced = false;
+    // El video va después del párrafo 5 (si hay menos de 5 párrafos, va al final del texto)
+    const VIDEO_AFTER = 5;
+    const video = item.videoUrl
+      ? `<figure class="reader-video"><video controls playsinline preload="metadata" src="${item.videoUrl}" onerror="this.parentNode.remove()"></video></figure>`
+      : "";
+    let figurePlaced = false, videoPlaced = false, paraCount = 0;
     let body = art.blocks.map(b => {
       if (b.type === "h") return `<h3>${escapeHtml(b.text)}</h3>`;
       let html = `<p>${runsToHtml(b.runs, b.text)}</p>`;
+      paraCount++;
       if (!figurePlaced && figure) { html += figure; figurePlaced = true; }
+      if (!videoPlaced && video && paraCount === VIDEO_AFTER) { html += video; videoPlaced = true; }
       return html;
     }).join("");
     if (figure && !figurePlaced) body = figure + body;
+    if (video && !videoPlaced) body += video;
     readerContent.innerHTML = readerHeaderHtml(item, art.title) + `
       <div class="reader-body">${body}</div>
       <div class="reader-foot">
