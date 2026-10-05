@@ -399,6 +399,10 @@
   .nr-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;
     font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:.03em;color:#6b6558;}
   .nr-img.has-img .nr-ph{display:none;}
+  /* Trazado de circuito (PNG transparente): se pinta en rojo sobre el panel oscuro/claro del tema */
+  .nr-img.line-art{background:var(--card) radial-gradient(circle at 1px 1px,var(--line) 1px,transparent 1.5px) 0 0/22px 22px;}
+  .nr-img .trace{position:absolute;inset:26px;background:var(--red);filter:drop-shadow(0 0 8px var(--red-glow));
+    -webkit-mask:var(--trace) center/contain no-repeat;mask:var(--trace) center/contain no-repeat;}
 
 </style>
 </head>
@@ -1427,9 +1431,29 @@ function renderNextRace(cat) {
     if (!src) return;
     const im = new Image();
     im.alt = "Circuito: " + r.circuit;
-    im.onload = () => slot.classList.add("has-img");
+    im.onload = () => {
+      // Si es el trazado propio (PNG con fondo transparente), lo pintamos en rojo sobre fondo del tema.
+      // Si la imagen tiene fondo (ej. foto de Wikipedia), se muestra tal cual sobre fondo claro.
+      let lineArt = false;
+      if (src === r.image) {
+        try {
+          const c = document.createElement("canvas"); c.width = c.height = 4;
+          const g = c.getContext("2d"); g.drawImage(im, 0, 0, 4, 4);
+          lineArt = g.getImageData(0, 0, 1, 1).data[3] < 10;   // esquina transparente
+        } catch (e) { lineArt = false; }
+      }
+      if (lineArt) {
+        const t = document.createElement("div");
+        t.className = "trace";
+        t.setAttribute("role", "img"); t.setAttribute("aria-label", "Circuito: " + r.circuit);
+        t.style.setProperty("--trace", `url("${src}")`);
+        slot.classList.add("line-art");
+        slot.appendChild(t);
+      } else slot.appendChild(im);
+      slot.classList.add("has-img");
+    };
+    im.crossOrigin = "anonymous";
     im.src = src;
-    slot.appendChild(im);
   });
 }
 
