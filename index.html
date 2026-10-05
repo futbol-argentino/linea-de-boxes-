@@ -199,14 +199,19 @@
     display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px;
   }
   @media (max-width:980px){.quick-links{grid-template-columns:repeat(2,1fr);}}
-  .quick-links button{
-    appearance:none;cursor:pointer;text-align:left;
-    background:var(--card);border:1px solid var(--line);color:var(--white);
+  .quick-links{align-items:stretch;}
+  .ql-card{display:flex;flex-direction:column;min-width:0;background:var(--card);border:1px solid var(--line);transition:border-color .15s ease;}
+  .ql-card:hover{border-color:var(--red);}
+  .quick-links .ql-head{
+    appearance:none;cursor:pointer;text-align:left;width:100%;
+    background:none;border:none;color:var(--white);
     font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:.02em;
     padding:16px 16px;display:flex;align-items:center;gap:10px;
-    transition:border-color .15s ease;
   }
-  .quick-links button:hover{border-color:var(--red);}
+  .ql-news{display:flex;flex-direction:column;flex:1 1 auto;margin:0 16px;padding:12px 0 16px;border-top:1px solid var(--line);color:var(--white);text-decoration:none;}
+  .ql-title{flex:1 1 auto;font-weight:600;font-size:15px;line-height:1.3;transition:color .15s ease;}
+  .ql-news:hover .ql-title{color:var(--red);}
+  .ql-news .nc-thumb{margin-top:10px;}
   .quick-links img{height:22px;width:auto;flex:none;}
 
   /* --- panel de categoría --- */
@@ -440,14 +445,14 @@
           <span class="checker"><span></span><span></span><span></span><span></span></span>
           AUTOMOVILISMO, AL DETALLE
         </div>
-        <h1>Todo el automovilismo,<br>en <em>una sola pista</em>.</h1>
+        <h1>Todo el automovilismo,<br>en <em>una sola pista</em></h1>
         <p>Fórmula 1, Franco Colapinto, Turismo Carretera, TC2000, Fórmula 2/3, Automovilismo Zonal y MotoGP.</p>
         <div class="hero-stripe"></div>
       </div>
     </div>
 
     <div class="wrap featured">
-      <div class="featured-head"><h2>Últimas noticias</h2></div>
+      <div class="featured-head"><h2>ÚLTIMAS NOTICIAS</h2></div>
       <div id="featuredGrid" class="featured-grid">
         <div class="skeleton"></div><div class="skeleton"></div>
         <div class="skeleton"></div><div class="skeleton"></div>
@@ -540,6 +545,11 @@ themeToggle.addEventListener("click", () => {
        (subís esa imagen a una carpeta "logos" en la raíz)
      - o una URL completa a una imagen, ej: "https://.../logo-tc.png"
    ================================================================ */
+const OPINION_LOGO = "data:image/svg+xml;utf8," + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="#e01230" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M44 6l14 14-30 30-17 4 4-17z"/><path d="M37 13l14 14"/><path d="M11 37l16 16"/><path d="M34 59h24"/></svg>'
+);
+
 const CONFIG = {
   owner:  "futbol-argentino",
   repo:   "linea-de-boxes-",
@@ -579,7 +589,7 @@ const CONFIG = {
         start: "2026-10-02", end: "2026-10-04", dateText: "2 al 4 de octubre",
         image: "circuitos/motogp.png", wikiSearch: "Mobility Resort Motegi"
       } },
-    { id: "opinion",    folder: "notas-de-opinion",    label: "Notas de opinión",       logo: "" },
+    { id: "opinion",    folder: "notas-de-opinion",    label: "Notas de opinión",       logo: OPINION_LOGO },
   ]
 };
 
@@ -633,10 +643,11 @@ CONFIG.categories.forEach(cat => {
     logoSlot.innerHTML = `<span class="checker"><span></span><span></span><span></span><span></span></span>`;
   }
 
-  const qb = document.createElement("button");
-  qb.dataset.goto = cat.id;
-  qb.innerHTML = (cat.logo ? `<img src="${cat.logo}" alt="">` : "") + `<span>${cat.label}</span>`;
-  qb.addEventListener("click", () => showPanel(cat.id));
+  const qb = document.createElement("div");
+  qb.className = "ql-card";
+  qb.id = "ql-" + cat.id;
+  qb.innerHTML = `<button type="button" class="ql-head">${cat.logo ? `<img src="${cat.logo}" alt="">` : ""}<span>${cat.label}</span></button>`;
+  qb.querySelector(".ql-head").addEventListener("click", () => showPanel(cat.id));
   quickLinks.appendChild(qb);
 });
 
@@ -1469,6 +1480,7 @@ async function init() {
     const cat = CONFIG.categories[i];
     if (result.status === "fulfilled") {
       renderCategory(cat, result.value);
+      renderQuickNews(cat, result.value);
       allItems.push(...result.value);
     } else {
       failed++;
@@ -1478,6 +1490,20 @@ async function init() {
   });
 
   renderFeatured(allItems, failed === CONFIG.categories.length);
+}
+
+/* Última noticia de cada sección, debajo del logo y nombre en "Secciones" */
+function renderQuickNews(cat, items) {
+  const card = document.getElementById("ql-" + cat.id);
+  if (!card || !items.length) return;
+  const it = items[0];   // fetchCategory ya las ordena: la primera es la más nueva
+  const a = document.createElement("a");
+  a.className = "ql-news";
+  a.href = it.url; a.target = "_blank"; a.rel = "noopener";
+  a.dataset.news = it.id;
+  a.innerHTML = `<div class="ql-title">${escapeHtml(it.title)}</div><div class="nc-thumb loading" data-thumb="${it.id}"></div>`;
+  card.appendChild(a);
+  observeThumbs(card);
 }
 
 init();
