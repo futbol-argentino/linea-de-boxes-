@@ -560,7 +560,7 @@ const CONFIG = {
         name: "Gran Premio de Singapur", circuit: "Marina Bay Street Circuit", place: "Marina Bay, Singapur",
         start: "2026-10-09", end: "2026-10-11", dateText: "9 al 11 de octubre",
         note: "Fin de semana con Sprint y carrera nocturna.",
-        image: "circuitos/f1-singapur.png", wikiSearch: "Marina Bay Street Circuit"
+        image: "circuitos/f1-singapur.png", plain: true, wikiSearch: "Marina Bay Street Circuit"
       } },
     { id: "colapinto",  folder: "franco-colapinto",    label: "Franco Colapinto",       logo: "logos/colapinto.png" },
     { id: "tc",         folder: "turismo-carretera",   label: "Turismo Carretera",      logo: "logos/tc.png",
@@ -1448,7 +1448,7 @@ function renderNextRace(cat) {
       // Si es el trazado propio (PNG con fondo transparente), lo pintamos en rojo sobre fondo del tema.
       // Si la imagen tiene fondo (ej. foto de Wikipedia), se muestra tal cual sobre fondo claro.
       let lineArt = false;
-      if (src === r.image) {
+      if (src === r.image && !r.plain) {   // plain:true => la imagen se muestra tal cual, sin pintarla de rojo
         try {
           const c = document.createElement("canvas"); c.width = c.height = 4;
           const g = c.getContext("2d"); g.drawImage(im, 0, 0, 4, 4);
