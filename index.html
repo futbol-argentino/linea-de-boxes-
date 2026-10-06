@@ -1174,8 +1174,10 @@ async function openReader(item) {
       : "";
     // El video va después del párrafo 4 (si hay menos de 4 párrafos, va al final del texto)
     const VIDEO_AFTER = 4;
-    const video = item.videoUrl
-      ? `<figure class="reader-video"><video controls playsinline preload="metadata" src="${item.videoUrl}" onerror="this.parentNode.remove()"></video></figure>`
+    // Si noticias.json no lista el video (el Action puede ignorar los .mp4), se prueba igual con el mismo nombre del PDF
+    const videoSrc = item.videoUrl || (item.rawUrl ? item.rawUrl.replace(/\.pdf$/i, ".mp4") : "");
+    const video = videoSrc
+      ? `<figure class="reader-video"><video controls playsinline preload="metadata" src="${videoSrc}" onerror="console.warn('Video no disponible:', this.src); this.parentNode.remove()"></video></figure>`
       : "";
     let figurePlaced = false, videoPlaced = false, paraCount = 0;
     let body = art.blocks.map(b => {
