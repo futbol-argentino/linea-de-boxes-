@@ -1172,8 +1172,8 @@ async function openReader(item) {
     const figure = item.imageUrl
       ? `<figure class="reader-figure"><img src="${item.imageUrl}" alt="${escapeHtml(art.title)}" onerror="this.parentNode.remove()"></figure>`
       : "";
-    // El video va después del párrafo 5 (si hay menos de 5 párrafos, va al final del texto)
-    const VIDEO_AFTER = 5;
+    // El video va después del párrafo 4 (si hay menos de 4 párrafos, va al final del texto)
+    const VIDEO_AFTER = 4;
     const video = item.videoUrl
       ? `<figure class="reader-video"><video controls playsinline preload="metadata" src="${item.videoUrl}" onerror="this.parentNode.remove()"></video></figure>`
       : "";
