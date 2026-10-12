@@ -1099,6 +1099,31 @@ function linesToBlocks(lines) {
   return blocks.filter(b => b.text.trim().length > 0);
 }
 
+/* Normaliza texto para comparar títulos: sin tildes, comillas ni signos, en minúsculas */
+function normTitle(t) {
+  return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/* Quita del principio los bloques que sólo repiten el título (aunque estén partidos en varias líneas/bloques) */
+function stripLeadingTitle(blocks, title) {
+  const t = normTitle(title);
+  if (!t) return blocks;
+  const tWords = new Set(t.split(" "));
+  let acc = "", i = 0, cut = 0;
+  while (i < blocks.length && i < 4) {
+    const n = normTitle(blocks[i].text);
+    if (!n) { i++; cut = i; continue; }
+    acc = (acc + " " + n).trim();
+    const words = acc.split(" ");
+    const hits = words.filter(w => tWords.has(w)).length;
+    const similar = hits / Math.max(words.length, tWords.size) >= 0.8;
+    const contained = t.startsWith(acc) || acc.startsWith(t) || t.includes(acc) && acc.length > t.length * 0.6;
+    if (similar || contained) { i++; cut = i; if (similar && words.length >= tWords.size * 0.9) break; }
+    else break;
+  }
+  return blocks.slice(cut);
+}
+
 async function extractArticle(item) {
   if (articleCache.has(item.id)) return articleCache.get(item.id);
   const pdfjsLib = await loadPdfJs();
@@ -1129,12 +1154,10 @@ async function extractArticle(item) {
   lines.forEach(l => l.runs.forEach(r => { const c = r.t.trim().length; allChars += c; if (r.b) boldChars += c; }));
   if (allChars && boldChars / allChars > 0.7) lines.forEach(l => { l.runs = [{ t: l.text, b: false }]; });
   let blocks = linesToBlocks(lines);
-  // Si el PDF trae un título grande arriba de todo, lo usamos como título de la noticia
-  let title = item.title;
-  if (blocks.length && blocks[0].type === "h" && blocks[0].page === 1) {
-    title = blocks[0].text;
-    blocks = blocks.slice(1);
-  }
+  // El título de la noticia es siempre el nombre del PDF. Si el PDF repite ese título arriba de todo
+  // (como título grande o como primer párrafo), lo sacamos para que el primer párrafo sea el real de la noticia.
+  const title = item.title;
+  blocks = stripLeadingTitle(blocks, title);
   const article = { title, blocks };
   articleCache.set(item.id, article);
   return article;
