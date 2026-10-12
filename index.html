@@ -409,6 +409,7 @@
   .nr-img .trace{position:absolute;inset:26px;background:var(--red);filter:drop-shadow(0 0 8px var(--red-glow));
     -webkit-mask:var(--trace) center/contain no-repeat;mask:var(--trace) center/contain no-repeat;}
 
+
 </style>
 </head>
 <body>
@@ -458,8 +459,9 @@
         <div class="skeleton"></div><div class="skeleton"></div>
       </div>
 
-      <div class="featured-head" style="margin-top:48px;"><h2>Secciones</h2></div>
+      <div class="featured-head" style="margin-top:48px;"><h2>SECCIONES</h2></div>
       <div id="quickLinks" class="quick-links"></div>
+
     </div>
   </section>
 
@@ -557,10 +559,9 @@ const CONFIG = {
   categories: [
     { id: "f1",        folder: "formula-1",           label: "Fórmula 1",              logo: "logos/f1.png",
       nextRace: {
-        name: "Gran Premio de Singapur", circuit: "Marina Bay Street Circuit", place: "Marina Bay, Singapur",
-        start: "2026-10-09", end: "2026-10-11", dateText: "9 al 11 de octubre",
-        note: "Fin de semana con Sprint y carrera nocturna.",
-        image: "circuitos/f1-singapur.png", plain: true, wikiSearch: "Marina Bay Street Circuit"
+        name: "Gran Premio de Estados Unidos", circuit: "Circuit of the Americas", place: "Austin, Texas, Estados Unidos",
+        start: "2026-10-23", end: "2026-10-25", dateText: "23 al 25 de octubre",
+        image: "circuitos/f1-austin.png", wikiSearch: "Circuit of the Americas"
       } },
     { id: "colapinto",  folder: "franco-colapinto",    label: "Franco Colapinto",       logo: "logos/colapinto.png" },
     { id: "tc",         folder: "turismo-carretera",   label: "Turismo Carretera",      logo: "logos/tc.png",
@@ -571,9 +572,10 @@ const CONFIG = {
       } },
     { id: "tc2000",     folder: "tc2000",              label: "TC2000",                 logo: "logos/tc2000.png",
       nextRace: {
-        name: "9ª fecha", circuit: "Autódromo Provincia de La Pampa", place: "Toay, La Pampa",
-        start: "2026-10-10", end: "2026-10-11", dateText: "10 y 11 de octubre",
-        image: "circuitos/tc2000-toay.png", wikiLang: "es", wikiSearch: "Autódromo Provincia de La Pampa Toay"
+        name: "10ª fecha", circuit: "Autódromo Parque Ciudad de General Roca", place: "General Roca, Río Negro",
+        start: "2026-10-31", end: "2026-11-01", dateText: "31 de octubre y 1 de noviembre",
+        note: "Comparte fin de semana con el Top Race y la Fórmula Nacional.",
+        image: "circuitos/tc2000-general-roca.png", wikiLang: "es", wikiSearch: "Autódromo Parque Ciudad de General Roca"
       } },
     { id: "f2f3",       folder: "formula-2-formula-3", label: "Fórmula 2 / Fórmula 3",  logo: "logos/f2f3.png",
       nextRace: {
@@ -585,9 +587,9 @@ const CONFIG = {
     { id: "zonal",      folder: "automovilismo-zonal", label: "Automovilismo Zonal",    logo: "logos/zonal.png" },
     { id: "motogp",     folder: "motogp",              label: "MotoGP",                 logo: "logos/motogp.png",
       nextRace: {
-        name: "Gran Premio de Indonesia", circuit: "Mandalika International Street Circuit", place: "Mandalika, Lombok, Indonesia",
-        start: "2026-10-09", end: "2026-10-11", dateText: "9 al 11 de octubre",
-        image: "circuitos/motogp-mandalika.png", wikiSearch: "Mandalika International Street Circuit"
+        name: "Gran Premio de Australia", circuit: "Phillip Island Grand Prix Circuit", place: "Phillip Island, Victoria, Australia",
+        start: "2026-10-23", end: "2026-10-25", dateText: "23 al 25 de octubre",
+        image: "circuitos/motogp-phillip-island.png", wikiSearch: "Phillip Island Grand Prix Circuit"
       } },
     { id: "opinion",    folder: "notas-de-opinion",    label: "Notas de opinión",       logo: OPINION_LOGO },
   ]
@@ -1533,5 +1535,6 @@ function renderQuickNews(cat, items) {
 
 init();
 </script>
+
 </body>
 </html>
