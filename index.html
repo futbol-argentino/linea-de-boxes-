@@ -566,13 +566,13 @@ const CONFIG = {
     { id: "colapinto",  folder: "franco-colapinto",    label: "Franco Colapinto",       logo: "logos/colapinto.png" },
     { id: "tc",         folder: "turismo-carretera",   label: "Turismo Carretera",      logo: "logos/tc.png",
       nextRace: {
-        name: "13ª fecha — Copa de Oro", circuit: "Autódromo Juan Manuel Fangio", place: "Rosario, Santa Fe",
+        name: "Fecha 13 — Copa de Oro", circuit: "Autódromo Juan Manuel Fangio", place: "Rosario, Santa Fe",
         start: "2026-10-24", end: "2026-10-25", dateText: "24 y 25 de octubre",
         image: "circuitos/tc-rosario.png", wikiLang: "es", wikiSearch: "Autódromo Juan Manuel Fangio Rosario"
       } },
     { id: "tc2000",     folder: "tc2000",              label: "TC2000",                 logo: "logos/tc2000.png",
       nextRace: {
-        name: "10ª fecha", circuit: "Autódromo Parque Ciudad de General Roca", place: "General Roca, Río Negro",
+        name: "Fecha 10", circuit: "Autódromo Parque Ciudad de General Roca", place: "General Roca, Río Negro",
         start: "2026-10-31", end: "2026-11-01", dateText: "31 de octubre y 1 de noviembre",
         note: "Comparte fin de semana con el Top Race y la Fórmula Nacional.",
         image: "circuitos/tc2000-general-roca.png", wikiLang: "es", wikiSearch: "Autódromo Parque Ciudad de General Roca"
@@ -746,6 +746,16 @@ showPanel(initial && (initial === "inicio" || CONFIG.categories.some(c => c.id =
    ================================================================ */
 
 const NEWS = [];   // registro de todas las noticias cargadas (el lector las busca por id)
+
+/* Autores de las Notas de opinión, por la fecha del PDF (AAAA-MM-DD).
+   Para una nota nueva: agregá una línea con su fecha y el nombre del autor. */
+const OPINION_AUTHORS = {
+  "2026-09-13": "Lucas Gérez",
+  "2026-09-14": "Facundo Aguiar",
+  "2026-09-17": "Lucas Gianastacio",
+  "2026-09-23": "Martín Panico",
+  "2026-09-29": "Gonzalo Gallegos",
+};
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})[-_ ]+(.+)\.pdf$/i;
 
 function parseNewsItem(file, cat) {
@@ -761,9 +771,11 @@ function parseNewsItem(file, cat) {
     title = file.name.replace(/\.pdf$/i, "").replace(/[-_]+/g, " ").trim();
   }
 
+  const dateKey = match ? `${match[1]}-${match[2]}-${match[3]}` : null;
   const item = {
     title: title.charAt(0).toUpperCase() + title.slice(1),
     date,
+    author: (cat.id === "opinion" && dateKey && OPINION_AUTHORS[dateKey]) || null,
     category: cat.label,
     url: file.html_url,   // página de GitHub (solo se usa como "ver PDF original")
     rawUrl: file.download_url || `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}/${encodeURIComponent(cat.folder)}/${encodeURIComponent(file.name)}`,
@@ -1205,7 +1217,14 @@ async function openReader(item) {
       ? `<figure class="reader-video"><video controls playsinline preload="metadata" src="${videoSrc}" onerror="console.warn('Video no disponible:', this.src); this.parentNode.remove()"></video></figure>`
       : "";
     let figurePlaced = false, videoPlaced = false, paraCount = 0;
-    let body = art.blocks.map(b => {
+    // Autor de la nota (Notas de opinión): subtítulo al principio; si el PDF ya lo trae, no se repite
+    let blocksToShow = art.blocks;
+    if (item.author) {
+      const a = normTitle(item.author);
+      blocksToShow = blocksToShow.filter((b, i) => !(i < 2 && normTitle(b.text) === a));
+    }
+    const authorHtml = item.author ? `<h3 class="reader-author">${escapeHtml(item.author)}</h3>` : "";
+    let body = authorHtml + blocksToShow.map(b => {
       if (b.type === "h") return `<h3>${escapeHtml(b.text)}</h3>`;
       let html = `<p>${runsToHtml(b.runs, b.text)}</p>`;
       paraCount++;
@@ -1213,7 +1232,7 @@ async function openReader(item) {
       if (!videoPlaced && video && paraCount === VIDEO_AFTER) { html += video; videoPlaced = true; }
       return html;
     }).join("");
-    if (figure && !figurePlaced) body = figure + body;
+    if (figure && !figurePlaced) body = authorHtml + figure + body.slice(authorHtml.length);
     if (video && !videoPlaced) body += video;
     readerContent.innerHTML = readerHeaderHtml(item, art.title) + `
       <div class="reader-body">${body}</div>
