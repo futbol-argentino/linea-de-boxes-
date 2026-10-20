@@ -1221,7 +1221,7 @@ async function openReader(item) {
     let blocksToShow = art.blocks;
     if (item.author) {
       const a = normTitle(item.author);
-      blocksToShow = blocksToShow.filter((b, i) => !(i < 2 && normTitle(b.text) === a));
+      blocksToShow = blocksToShow.filter((b, i) => { const n = normTitle(b.text); return !(i < 3 && (n === a || n === "por " + a)); });
     }
     const authorHtml = item.author ? `<h3 class="reader-author">${escapeHtml(item.author)}</h3>` : "";
     let body = authorHtml + blocksToShow.map(b => {
